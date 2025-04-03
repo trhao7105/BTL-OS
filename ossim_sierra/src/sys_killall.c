@@ -21,7 +21,7 @@ int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
     //hardcode for demo only
     uint32_t memrg = regs->a1;
     
-    /* TODO: Get name of the target proc */
+    /* TODO: Get name of the target proc */ //done
     //proc_name = libread..
     int i = 0;
     data = 0;
@@ -31,6 +31,7 @@ int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
         if(data == -1) proc_name[i]='\0';
         i++;
     }
+    proc_name[i] = '\0';
     printf("The procname retrieved from memregionid %d is \"%s\"\n", memrg, proc_name);
 
     /* TODO: Traverse proclist to terminate the proc
@@ -43,6 +44,28 @@ int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
      *       all processes with given
      *        name in var proc_name
      */
+    struct pcb_t *p;
+    struct list_head *pos, *tmp;
 
-    return 0; 
+    list_for_each_safe(pos, tmp, &caller->running_list) {
+        p = list_entry(pos, struct pcb_t, list);
+        if (strcmp(p->name, proc_name) == 0) {
+            printf("Terminating process: %s (PID: %d)\n", p->name, p->pid);
+            terminate_process(p);
+        }
+    }
+
+    if (caller->mlq_ready_queue != NULL) {
+        struct queue_t *queue = caller->mlq_ready_queue; 
+        list_for_each_safe(pos, tmp, &queue->list) {
+            p = list_entry(pos, struct pcb_t, list);
+            if (strcmp(p->name, proc_name) == 0) {
+                printf("Terminating process: %s (PID: %d)\n", p->name, p->pid);
+                terminate_process(p);
+            }
+        }
+    }
+
+    return 0;
+     
 }

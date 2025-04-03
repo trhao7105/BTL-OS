@@ -44,13 +44,17 @@ static struct trans_table_t * get_trans_table(
 		struct page_table_t * page_table) { // first level table
 	
 	/* DO NOTHING HERE. This mem is obsoleted */
-
+	if (page_table == NULL || page_table->size == 0) {
+        return NULL;
+    }
 	int i;
 	for (i = 0; i < page_table->size; i++) {
 		// Enter your code here
+		if (page_table->table[i].v_index == index) {
+            return &page_table->table[i];
+		}
 	}
 	return NULL;
-
 }
 
 /* Translate virtual address to physical address. If [virtual_addr] is valid,

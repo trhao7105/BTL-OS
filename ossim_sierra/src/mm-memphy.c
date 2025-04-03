@@ -160,11 +160,11 @@ int MEMPHY_get_freefp(struct memphy_struct *mp, int *retfpn)
 
 int MEMPHY_dump(struct memphy_struct *mp)
 {
-  /*TODO dump memphy contnt mp->storage
+  /*TODO dump memphy contnt mp->storage //done
    *     for tracing the memory content
    */
    if (mp == NULL || mp->storage == NULL) {
-      return -1;  // Invalid memory structure
+      return -1; 
    }
 
    printf("\n--- Memory Dump (%d bytes) ---\n", mp->maxsz);
