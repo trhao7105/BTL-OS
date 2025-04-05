@@ -12,6 +12,7 @@
 #include "syscall.h"
 #include "stdio.h"
 #include "libmem.h"
+#include "queue.h"
 
 int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
 {
@@ -44,27 +45,28 @@ int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
      *       all processes with given
      *        name in var proc_name
      */
-    struct pcb_t *p;
-    struct list_head *pos, *tmp;
-
-    list_for_each_safe(pos, tmp, &caller->running_list) {
-        p = list_entry(pos, struct pcb_t, list);
-        if (strcmp(p->name, proc_name) == 0) {
-            printf("Terminating process: %s (PID: %d)\n", p->name, p->pid);
-            terminate_process(p);
-        }
-    }
-
-    if (caller->mlq_ready_queue != NULL) {
-        struct queue_t *queue = caller->mlq_ready_queue; 
-        list_for_each_safe(pos, tmp, &queue->list) {
-            p = list_entry(pos, struct pcb_t, list);
-            if (strcmp(p->name, proc_name) == 0) {
-                printf("Terminating process: %s (PID: %d)\n", p->name, p->pid);
+    if (caller->running_list != NULL) {
+        for (int i = 0; i < caller->running_list->size; ++i) {
+            struct pcb_t *p = caller->running_list->proc[i];
+            if (p != NULL && strcmp(p->path, proc_name) == 0) {
+                printf("Terminating process: %s (PID: %d)\n", p->path, p->pid);
                 terminate_process(p);
             }
         }
     }
+
+    // Duyệt các tiến trình trong MLQ nếu bật
+#ifdef MLQ_SCHED
+    if (caller->mlq_ready_queue != NULL) {
+        for (int i = 0; i < caller->mlq_ready_queue->size; ++i) {
+            struct pcb_t *p = caller->mlq_ready_queue->proc[i];
+            if (p != NULL && strcmp(p->path, proc_name) == 0) {
+                printf("Terminating process: %s (PID: %d)\n", p->path, p->pid);
+                terminate_process(p);
+            }
+        }
+    }
+#endif
 
     return 0;
      
