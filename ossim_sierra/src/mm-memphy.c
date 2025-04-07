@@ -160,44 +160,15 @@ int MEMPHY_get_freefp(struct memphy_struct *mp, int *retfpn)
 
 int MEMPHY_dump(struct memphy_struct *mp)
 {
-  /*TODO dump memphy contnt mp->storage //done
+  /*TODO dump memphy contnt mp->storage
    *     for tracing the memory content
    */
-   if (mp == NULL || mp->storage == NULL) {
-      return -1; 
+   printf("MEMPHY_dump: size=%d\n", mp->maxsz);
+   for (int i = 0; i < mp->maxsz; i++)
+   {
+      if (mp->storage[i] != 0)
+         printf("  [%d] = %02x\n", i, mp->storage[i]);
    }
-
-   printf("\n--- Memory Dump (%d bytes) ---\n", mp->maxsz);
-
-   // Print header
-   printf("Offset\t");
-   for (int i = 0; i < 16; i++) {
-      printf("%02X ", i);
-   }
-   printf("\n");
-
-   // Dump memory contents in hex
-   for (int i = 0; i < mp->maxsz; i += 16) {
-      printf("%06X:\t", i);
-   
-   // Print 16 bytes per line
-   for (int j = 0; j < 16; j++) {
-         if (i + j < mp->maxsz) {
-            printf("%02X ", mp->storage[i + j]);
-         } else {
-            printf("   ");  // Padding for last line
-         }
-      }
-   
-      // Print ASCII representation
-      printf(" ");
-      for (int j = 0; j < 16 && (i + j) < mp->maxsz; j++) {
-         BYTE c = mp->storage[i + j];
-         printf("%c", (c >= 32 && c <= 126) ? c : '.');
-      }
-      printf("\n");
-   }
-   printf("--- End of Dump ---\n\n");
    return 0;
 }
 

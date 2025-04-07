@@ -44,17 +44,13 @@ static struct trans_table_t * get_trans_table(
 		struct page_table_t * page_table) { // first level table
 	
 	/* DO NOTHING HERE. This mem is obsoleted */
-	if (page_table == NULL || page_table->size == 0) {
-        return NULL;
-    }
+
 	int i;
 	for (i = 0; i < page_table->size; i++) {
 		// Enter your code here
-		if (page_table->table[i].v_index == index) {
-            return &page_table->table[i];
-		}
 	}
 	return NULL;
+
 }
 
 /* Translate virtual address to physical address. If [virtual_addr] is valid,
@@ -107,15 +103,6 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	 * to know whether this page has been used by a process.
 	 * For virtual memory space, check bp (break pointer).
 	 * */
-	int free_pages = 0;
-	for (int i = 0; i < NUM_PAGES; i++) {
-		if (_mem_stat[i].proc == 0) {
-			free_pages++;
-		}
-	}
-	if (free_pages >= num_pages && proc->bp + num_pages * PAGE_SIZE < (1 << ADDRESS_SIZE)) {
-		mem_avail = 1;
-	}
 	
 	if (mem_avail) {
 		/* We could allocate new memory region to the process */
@@ -127,38 +114,6 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		 * 	- Add entries to segment table page tables of [proc]
 		 * 	  to ensure accesses to allocated memory slot is
 		 * 	  valid. */
-		int allocated = 0;
-		int last_page = -1;
-
-		for (int i = 0; i < NUM_PAGES && allocated < num_pages; i++) {
-			if (_mem_stat[i].proc == 0) {
-				_mem_stat[i].proc = proc->pid;
-				_mem_stat[i].index = allocated;
-				if (last_page != -1) {
-					_mem_stat[last_page].next = i;
-				}
-				last_page = i;
-				_mem_stat[i].next = -1;
-
-				addr_t vaddr = ret_mem + allocated * PAGE_SIZE;
-				addr_t seg_idx = get_first_lv(vaddr);
-				addr_t page_idx = get_second_lv(vaddr);
-
-				struct trans_table_t *trans_table = get_trans_table(seg_idx, proc->page_table);
-				if (trans_table == NULL) {
-					proc->page_table->table[proc->page_table->size].v_index = seg_idx;
-					trans_table = &proc->page_table->table[proc->page_table->size].trans_table;
-					trans_table->size = 0;
-					proc->page_table->size++;
-				}
-
-				trans_table->table[trans_table->size].v_index = page_idx;
-				trans_table->table[trans_table->size].p_index = i;
-				trans_table->size++;
-
-				allocated++;
-			}
-		}
 	}
 	pthread_mutex_unlock(&mem_lock);
 	return ret_mem;
