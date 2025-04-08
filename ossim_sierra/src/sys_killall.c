@@ -8,66 +8,62 @@
  * for the sole purpose of studying while attending the course CO2018.
  */
 
-#include "common.h"
-#include "syscall.h"
-#include "stdio.h"
-#include "libmem.h"
-#include "queue.h"
-
-int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
-{
-    char proc_name[100];
-    uint32_t data;
-
-    //hardcode for demo only
-    uint32_t memrg = regs->a1;
-    
-    /* TODO: Get name of the target proc */ //done
-    //proc_name = libread..
-    int i = 0;
-    data = 0;
-    while(data != -1){
-        libread(caller, memrg, i, &data);
-        proc_name[i]= data;
-        if(data == -1) proc_name[i]='\0';
-        i++;
-    }
-    proc_name[i] = '\0';
-    printf("The procname retrieved from memregionid %d is \"%s\"\n", memrg, proc_name);
-
-    /* TODO: Traverse proclist to terminate the proc
-     *       stcmp to check the process match proc_name
-     */
-    //caller->running_list
-    //caller->mlq_ready_queu
-
-    /* TODO Maching and terminating 
-     *       all processes with given
-     *        name in var proc_name
-     */
-    if (caller->running_list != NULL) {
-        for (int i = 0; i < caller->running_list->size; ++i) {
-            struct pcb_t *p = caller->running_list->proc[i];
-            if (p != NULL && strcmp(p->path, proc_name) == 0) {
-                printf("Terminating process: %s (PID: %d)\n", p->path, p->pid);
-                terminate_process(p);
-            }
-        }
-    }
-
-    // Duyệt các tiến trình trong MLQ nếu bật
-#ifdef MLQ_SCHED
-    if (caller->mlq_ready_queue != NULL) {
-        for (int i = 0; i < caller->mlq_ready_queue->size; ++i) {
-            struct pcb_t *p = caller->mlq_ready_queue->proc[i];
-            if (p != NULL && strcmp(p->path, proc_name) == 0) {
-                printf("Terminating process: %s (PID: %d)\n", p->path, p->pid);
-                terminate_process(p);
-            }
-        }
-    }
-#endif
-
-    return 0;
-     
-}
+ #include "common.h"
+ #include "syscall.h"
+ #include "stdio.h"
+ #include "libmem.h"
+ 
+ #include "queue.h"
+ #include <string.h>  // Thêm để dùng strcmp
+ #include <stdlib.h>  // Thêm để dùng free
+ 
+ int __sys_killall(struct pcb_t *caller, struct sc_regs *regs)
+ {
+     char proc_name[100];
+     uint32_t data;
+     uint32_t memrg = regs->a1;
+ 
+     /* Đọc tên tiến trình từ vùng bộ nhớ */
+     int i = 0;
+     do {
+         if (libread(caller, memrg, i, &data) != 0) {
+             printf("Error: Failed to read from memory region %d at offset %d\n", memrg, i);
+             return -1;
+         }
+         proc_name[i] = (BYTE)data;
+         i++;
+     } while (data != 0 && i < 100);
+     proc_name[i - 1] = '\0';
+ 
+     printf("The procname retrieved from memregionid %d is \"%s\"\n", memrg, proc_name);
+ 
+     /* Duyệt và chấm dứt tiến trình trong running_list */
+     struct queue_t *run_q = caller->running_list;
+     for (int j = 0; j < run_q->size; j++) {
+         if (strcmp(run_q->proc[j]->path, proc_name) == 0) {
+             free(run_q->proc[j]);
+             for (int k = j; k < run_q->size - 1; k++) {
+                 run_q->proc[k] = run_q->proc[k + 1];
+             }
+             run_q->size--;
+             j--;
+         }
+     }
+ 
+     /* Duyệt và chấm dứt tiến trình trong mlq_ready_queue */
+     for (int prio = 0; prio < MAX_PRIO; prio++) {
+         struct queue_t *q = &caller->mlq_ready_queue[prio];
+         for (int j = 0; j < q->size; j++) {
+             if (strcmp(q->proc[j]->path, proc_name) == 0) {
+                 free(q->proc[j]);
+                 for (int k = j; k < q->size - 1; k++) {
+                     q->proc[k] = q->proc[k + 1];
+                 }
+                 q->size--;
+                 j--;
+             }
+         }
+     }
+ 
+     return 0;
+ }
