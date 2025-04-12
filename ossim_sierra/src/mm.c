@@ -89,7 +89,6 @@ int vmap_page_range(struct pcb_t *caller,           // process call
   if (caller == NULL || frames == NULL || ret_rg == NULL || pgnum <= 0) {
     return -1;  
   }
-  struct framephy_struct *fpit = frames;
   int pgn = PAGING_PGN(addr);
 
   /* TODO: update the rg_end and rg_start of ret_rg 
@@ -116,12 +115,11 @@ int vmap_page_range(struct pcb_t *caller,           // process call
     pte_set_fpn(&caller->mm->pgd[pgn + pgit], fpit->fpn);
     enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
     fpit = fpit->fp_next;
-    pgit++;
   }
 
   /* Tracking for later page replacement activities (if needed)
    * Enqueue new usage page */
-  enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
+  enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgnum);
 
   return 0;
 }
