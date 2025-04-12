@@ -90,7 +90,6 @@ int vmap_page_range(struct pcb_t *caller,           // process call
     return -1;  
   }
   struct framephy_struct *fpit = frames;
-  int pgit = 0;
   int pgn = PAGING_PGN(addr);
 
   /* TODO: update the rg_end and rg_start of ret_rg 
@@ -108,7 +107,7 @@ int vmap_page_range(struct pcb_t *caller,           // process call
 
   /* Tracking for later page replacement activities (if needed)
    * Enqueue new usage page */ //done
-  for (pgit; pgit < pgnum; pgit++) {
+  for (int pgit = 0; pgit < pgnum; pgit++) {
     if (fpit == NULL) {
         break;  // Ran out of frames before mapping all pages
     }
