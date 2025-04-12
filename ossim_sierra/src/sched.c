@@ -1,5 +1,6 @@
 
 #include "queue.h"
+#include <string.h>
 #include "sched.h"
 #include <pthread.h>
 
@@ -51,24 +52,28 @@ struct pcb_t * get_mlq_proc(void) {
 	/*TODO: get a process from PRIORITY [ready_queue]. //done
 	 * Remember to use lock to protect the queue.
 	 * */
-	pthread_mutex_lock(&queue_lock);
     
-    for (int prio = MAX_PRIO - 1; prio >= 0; prio--) {
-        if (!empty(&mlq_ready_queue[prio])) {
-            proc = dequeue(&mlq_ready_queue[prio]);
-            if (proc != NULL) {
-                slot[prio]--;
-                if (slot[prio] <= 0) {
-                    slot[prio] = MAX_PRIO - prio; // Reset slot counter
-                    pthread_mutex_unlock(&queue_lock);
-                    return proc;
-                }
-                /* If still have slot, put back to queue */
-                enqueue(&mlq_ready_queue[prio], proc);
-                proc = NULL;
-            }
-        }
-    }   
+    static uint32_t curr_prio = 0;
+	static int curr_slot = 0;
+
+	pthread_mutex_lock(&queue_lock);
+
+	for (int i = 0; i < MAX_PRIO; i++) {
+		uint32_t prio = (curr_prio + i) % MAX_PRIO;
+
+		if (!empty(&mlq_ready_queue[prio])) {
+			proc = dequeue(&mlq_ready_queue[prio]);
+
+			curr_slot--;
+
+			if (curr_slot <= 0) {
+				curr_prio = (prio + 1) % MAX_PRIO;
+				curr_slot = slot[curr_prio];
+			}
+
+			break;
+		}
+	}
     pthread_mutex_unlock(&queue_lock);
     return proc;	
 }
@@ -119,7 +124,9 @@ struct pcb_t * get_proc(void) {
 	 * Remember to use lock to protect the queue.
 	 * */
 	pthread_mutex_lock(&queue_lock);
-    proc = dequeue(&ready_queue);
+    if (!empty(&ready_queue)) {
+		proc = dequeue(&ready_queue);
+	}
     pthread_mutex_unlock(&queue_lock);
 	return proc;
 }
@@ -130,7 +137,6 @@ void put_proc(struct pcb_t * proc) {
 
 	/* TODO: put running proc to running_list */
 	pthread_mutex_lock(&queue_lock);
-    enqueue(&running_list, proc);
     enqueue(&run_queue, proc);
     pthread_mutex_unlock(&queue_lock);
 }
@@ -141,7 +147,6 @@ void add_proc(struct pcb_t * proc) {
 
 	/* TODO: put running proc to running_list */
 	pthread_mutex_lock(&queue_lock);
-    enqueue(&running_list, proc);
     enqueue(&ready_queue, proc);
     pthread_mutex_unlock(&queue_lock);
 }

@@ -72,7 +72,6 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   struct vm_rg_struct rgnode;
 
   /* TODO: commit the vmaid */ //done
-  rgnode.vmaid = vmaid;
 
   if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0)
   {
@@ -92,7 +91,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 
   /*Attempt to increate limit to get space */
   int inc_sz = PAGING_PAGE_ALIGNSZ(size);
-  int inc_limit_ret;
+  //int inc_limit_ret;
 
   /* TODO retrive old_sbrk if needed, current comment out due to compiler redundant warning*/ //done
   int old_sbrk = cur_vma->sbrk;
@@ -101,12 +100,12 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
    * sys_memap with SYSMEM_INC_OP 
    */
   struct sc_regs regs;
-  regs.a1 = (int)caller;
+  regs.a1 = (uintptr_t)caller;
   regs.a2 = (int)vmaid;
   regs.a3 = (int)inc_sz;
   
   /* SYSCALL 17 sys_memmap */
-  sys_memmap(SYSMEM_INC_OP, &regs);
+  syscall(caller, 17, &regs);
   /* TODO: commit the limit increment */ //done
   cur_vma->sbrk += inc_sz;
   /* TODO: commit the allocation address  */ //done
@@ -152,7 +151,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
       return -1;
   /* TODO: Manage the collect freed region to freerg_list */ //done 
   /*enlist the obsoleted memory region */
-  enlist_vm_freerg_list(caller, rgnode);
+  enlist_vm_freerg_list(caller->mm, rgnode);
   /* Clear the region information */
   rgnode->rg_start = 0;
   rgnode->rg_end = 0;
@@ -227,12 +226,12 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
      * with operation SYSMEM_SWP_OP
      */
     struct sc_regs regs;
-    regs.a1 = (int)caller->mram;        
+    regs.a1 = (uintptr_t)caller->mram;        
     regs.a2 = vicfpn;                    
-    regs.a3 = (int)caller->active_mswp;  
+    regs.a3 = (uintptr_t)caller->active_mswp;  
     regs.a4 = swpfpn;                    
     regs.a5 = SYSMEM_SWP_OP;          
-    sys_memmap(&regs);                  
+    syscall(caller, 17, &regs);                 
 
     /* SYSCALL 17 sys_memmap */
     /* Update victim page's PTE to point to swap and mark it not present */
@@ -244,12 +243,12 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
      * with operation SYSMEM_SWP_OP
      */
     /* TODO copy target frame form swap to mem */
-    regs.a1 = (int)caller->active_mswp;  
+    regs.a1 = (uintptr_t)caller->active_mswp;  
     regs.a2 = tgtfpn;                   
-    regs.a3 = (int)caller->mram;         
+    regs.a3 = (uintptr_t)caller->mram;         
     regs.a4 = vicfpn;                   
     regs.a5 = SYSMEM_SWP_OP;             
-    sys_memmap(&regs);                  
+    syscall(caller, 17, &regs);                  
 
     /* SYSCALL 17 sys_memmap */
 
@@ -293,13 +292,13 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
   /* Calculate physical address and read the value */ //done
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
   struct sc_regs regs;
-  regs.a1 = (int)caller->mram;    
+  regs.a1 = (uintptr_t)caller->mram;    
   regs.a2 = phyaddr;              
-  regs.a3 = (int)data;           
+  regs.a3 = (uintptr_t)data;           
   regs.a4 = 1;                  
   regs.a5 = SYSMEM_IO_READ;       
   
-  sys_memmap(&regs);             
+  syscall(caller, 17, &regs);             
 
   // Update data
   // data = (BYTE)
@@ -331,14 +330,14 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
   /* Calculate physical address */
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off; //done
   struct sc_regs regs;
-  regs.a1 = (int)caller->mram;   
+  regs.a1 = (uintptr_t)caller->mram;   
   regs.a2 = phyaddr;              
-  regs.a3 = (int)&value;        
+  regs.a3 = (uintptr_t)&value;        
   regs.a4 = 1;                   
   regs.a5 = SYSMEM_IO_WRITE;     
 
   /* SYSCALL 17 sys_memmap */
-  sys_memmap(&regs);
+  syscall(caller, 17, &regs);
   // Update data
   // data = (BYTE) 
 
@@ -464,18 +463,22 @@ int free_pcb_memph(struct pcb_t *caller)
  */
 int find_victim_page(struct mm_struct *mm, int *retpgn)
 {
-  if (mm == NULL || retpgn == NULL || mm->fifo_pgn == NULL) {
-    return -1;  // Invalid parameters or empty page list
-  }
+  struct pgn_t *prev = NULL;
   struct pgn_t *pg = mm->fifo_pgn;
-
+  if (pg == NULL) {
+    return -1;}
   /* TODO: Implement the theorical mechanism to find the victim page */ //done
+  while (pg->pg_next != NULL) {
+    prev = pg;
+    pg = pg->pg_next;
+  }
   *retpgn = pg->pgn;  
-    // Remove the victim from FIFO queue
-    mm->fifo_pgn = pg->pg_next;
-    if (mm->fifo_pgn != NULL) {
-        mm->fifo_pgn->pg_prev = NULL;
-    }
+  // Remove the victim from FIFO queue
+  if (prev == NULL) { // Danh sách chỉ có 1 phần tử
+    mm->fifo_pgn = NULL;
+  } else {
+    prev->pg_next = NULL;
+  }
 
   free(pg);
 
@@ -496,8 +499,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
   }
   
   struct vm_rg_struct *rgit = cur_vma->vm_freerg_list;
-  if (rgit == NULL)
-    return -1;
+  struct vm_rg_struct *prev = NULL;
 
   /* Probe unintialized newrg */
   newrg->rg_start = newrg->rg_end = -1;
@@ -513,25 +515,21 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
         
         /* Update the free region list */
         if (region_size == size) {
-            /* Exact fit - remove this region from free list */
-            if (rgit->rg_prev) {
-                rgit->rg_prev->rg_next = rgit->rg_next;
+            // Remove this region from list
+            if (prev == NULL) {
+              cur_vma->vm_freerg_list = rgit->rg_next;
             } else {
-                cur_vma->vm_freerg_list = rgit->rg_next;
-            }
-            
-            if (rgit->rg_next) {
-                rgit->rg_next->rg_prev = rgit->rg_prev;
+              prev->rg_next = rgit->rg_next;
             }
             free(rgit);
         } else {
-            /* Partial fit - adjust the free region */
-            rgit->rg_start += size;
+          // Adjust region
+          rgit->rg_start += size;
         }
-        
         return 0;  
       }
-      rgit = rgit->rg_next;
+    prev = rgit;
+    rgit = rgit->rg_next;
     }
   return -1;
 }

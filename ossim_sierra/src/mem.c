@@ -51,7 +51,7 @@ static struct trans_table_t * get_trans_table(
 	for (i = 0; i < page_table->size; i++) {
 		// Enter your code here
 		if (page_table->table[i].v_index == index) {
-            return &page_table->table[i];
+            return page_table->table[i].next_lv;
 		}
 	}
 	return NULL;
@@ -145,11 +145,16 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 				addr_t page_idx = get_second_lv(vaddr);
 
 				struct trans_table_t *trans_table = get_trans_table(seg_idx, proc->page_table);
+				
 				if (trans_table == NULL) {
-					proc->page_table->table[proc->page_table->size].v_index = seg_idx;
-					trans_table = &proc->page_table->table[proc->page_table->size].trans_table;
-					trans_table->size = 0;
+					// Chưa có segment này -> tạo mới
+					int seg_count = proc->page_table->size;
+					proc->page_table->table[seg_count].v_index = seg_idx;
+					proc->page_table->table[seg_count].next_lv = (struct trans_table_t *)malloc(sizeof(struct trans_table_t));
+					proc->page_table->table[seg_count].next_lv->size = 0;
 					proc->page_table->size++;
+
+					trans_table = proc->page_table->table[seg_count].next_lv;
 				}
 
 				trans_table->table[trans_table->size].v_index = page_idx;

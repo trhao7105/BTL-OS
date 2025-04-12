@@ -13,7 +13,7 @@
 static int time_slot;
 static int num_cpus;
 static int done = 0;
-
+#undef MM_PAGING
 #ifdef MM_PAGING
 static int memramsz;
 static int memswpsz[PAGING_MAX_MMSWP];
