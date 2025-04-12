@@ -11,39 +11,22 @@ void enqueue(struct queue_t * q, struct pcb_t * proc) {
         /* TODO: put a new process to queue [q] */ //done
         if (q == NULL || proc == NULL || q->size >= MAX_QUEUE_SIZE) {
                 return; 
-        }
-        if (q->size >= MAX_QUEUE_SIZE) {
-                return;
-        }
+            }
         q->proc[q->size] = proc;
-        q->size++;
-}
+        q->size++;      
+}       
 
 struct pcb_t * dequeue(struct queue_t * q) {
-        /* TODO: return a pcb whose prioprity is the highest //done
+        /* TODO: return a pcb whose prioprity is the highest
          * in the queue [q] and remember to remove it from q
          * */
-	if (empty(q)) {
+	// return NULL;
+        if (q->size == 0)
                 return NULL;
-        }
-            
-        int max_idx = 0;
-        int max_prio = q->proc[0]->prio; 
-            
-        for (int i = 1; i < q->size; i++) {
-                if (q->proc[i]->prio > max_prio) {
-                    max_prio = q->proc[i]->prio;
-                    max_idx = i;
-                }
-        }
-            
-            struct pcb_t *selected = q->proc[max_idx];
-            
-        for (int i = max_idx; i < q->size - 1; i++) {
-                q->proc[i] = q->proc[i + 1];
-        }
-            
+        struct pcb_t *proc = q->proc[0];
+        for (int i = 1; i < q->size; i++)
+                q->proc[i - 1] = q->proc[i];
         q->size--;
-        return selected;
+        return proc;
 }
 

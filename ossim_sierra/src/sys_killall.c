@@ -13,7 +13,7 @@
 #include "stdio.h"
 #include "libmem.h"
 #include "queue.h"
-#include <string.h>
+
 int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
 {
     char proc_name[100];
@@ -50,7 +50,7 @@ int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
             struct pcb_t *p = caller->running_list->proc[i];
             if (p != NULL && strcmp(p->path, proc_name) == 0) {
                 printf("Terminating process: %s (PID: %d)\n", p->path, p->pid);
-                caller->running_list->proc[i] = NULL;
+                terminate_process(p);
             }
         }
     }
@@ -62,7 +62,7 @@ int __sys_killall(struct pcb_t *caller, struct sc_regs* regs)
             struct pcb_t *p = caller->mlq_ready_queue->proc[i];
             if (p != NULL && strcmp(p->path, proc_name) == 0) {
                 printf("Terminating process: %s (PID: %d)\n", p->path, p->pid);
-                caller->mlq_ready_queue->proc[i] = NULL;
+                terminate_process(p);
             }
         }
     }
